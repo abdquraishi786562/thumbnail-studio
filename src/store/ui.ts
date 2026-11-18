@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Editor } from '../editor/editor';
 
-export type ToolTab = 'templates' | 'text' | 'images' | 'shapes' | 'ai' | 'brand';
+export type ToolTab = 'templates' | 'text' | 'images' | 'shapes' | 'layers' | 'animate' | 'ai' | 'brand';
 
 interface Toast {
   id: number;
@@ -12,11 +12,13 @@ interface UiState {
   editor: Editor | null;
   tab: ToolTab;
   settingsOpen: boolean;
+  exportOpen: boolean;
   projectName: string;
   toasts: Toast[];
   setEditor: (editor: Editor | null) => void;
   setTab: (tab: ToolTab) => void;
   setSettingsOpen: (open: boolean) => void;
+  setExportOpen: (open: boolean) => void;
   setProjectName: (name: string) => void;
   toast: (message: string) => void;
 }
@@ -27,11 +29,13 @@ export const useUi = create<UiState>((set, get) => ({
   editor: null,
   tab: 'text',
   settingsOpen: false,
+  exportOpen: false,
   projectName: '',
   toasts: [],
   setEditor: (editor) => set({ editor }),
   setTab: (tab) => set({ tab }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+  setExportOpen: (exportOpen) => set({ exportOpen }),
   setProjectName: (projectName) => set({ projectName }),
   toast: (message) => {
     const id = nextToast++;

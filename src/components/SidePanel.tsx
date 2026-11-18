@@ -6,6 +6,11 @@ import {
   Square,
   Circle,
   RectangleHorizontal,
+  Triangle,
+  Star,
+  ArrowRight,
+  Minus,
+  MessageSquare,
   Scissors,
   ScanFace,
   Pipette,
@@ -19,6 +24,9 @@ import {
 import { useUi, type ToolTab } from '../store/ui';
 import { useSettings } from '../store/settings';
 import { resolveTheme } from '../theme/themes';
+import type { ShapeKind } from '../editor/editor';
+import { LayersPanel } from './LayersPanel';
+import { AnimatePanel } from './AnimatePanel';
 
 const list: Variants = {
   hidden: {},
@@ -82,6 +90,9 @@ function ImagesPanel() {
         </motion.span>
         <strong>{t('images.upload')}</strong>
       </motion.button>
+      <motion.p variants={item} className="hint" style={{ marginTop: 12 }}>
+        {t('image.pasteHint')}
+      </motion.p>
       <input
         ref={input}
         type="file"
@@ -101,11 +112,16 @@ function ShapesPanel() {
   const { t } = useTranslation();
   const editor = useUi((s) => s.editor);
   const accent = useAccent();
-  const shapes = [
+  const shapes: [ShapeKind, typeof Square, string][] = [
     ['rect', Square, t('shapes.rect')],
     ['circle', Circle, t('shapes.circle')],
-    ['badge', RectangleHorizontal, t('shapes.badge')]
-  ] as const;
+    ['badge', RectangleHorizontal, t('shapes.badge')],
+    ['triangle', Triangle, t('shapes2.triangle')],
+    ['star', Star, t('shapes2.star')],
+    ['arrow', ArrowRight, t('shapes2.arrow')],
+    ['line', Minus, t('shapes2.line')],
+    ['bubble', MessageSquare, t('shapes2.bubble')]
+  ];
   return (
     <motion.div variants={list} initial="hidden" animate="show">
       <motion.h2 variants={item} style={{ marginBottom: 14 }}>
@@ -201,6 +217,8 @@ export function SidePanel() {
           {tab === 'images' && <ImagesPanel />}
           {tab === 'shapes' && <ShapesPanel />}
           {tab === 'ai' && <AiPanel />}
+          {tab === 'layers' && <LayersPanel />}
+          {tab === 'animate' && <AnimatePanel />}
           {(tab === 'templates' || tab === 'brand') && <ComingSoon tab={tab} />}
         </motion.div>
       </AnimatePresence>
