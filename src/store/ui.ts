@@ -13,12 +13,14 @@ interface UiState {
   tab: ToolTab;
   settingsOpen: boolean;
   exportOpen: boolean;
+  aiOpen: boolean;
   projectName: string;
   toasts: Toast[];
   setEditor: (editor: Editor | null) => void;
   setTab: (tab: ToolTab) => void;
   setSettingsOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
+  setAiOpen: (open: boolean) => void;
   setProjectName: (name: string) => void;
   toast: (message: string) => void;
 }
@@ -30,12 +32,14 @@ export const useUi = create<UiState>((set, get) => ({
   tab: 'text',
   settingsOpen: false,
   exportOpen: false,
+  aiOpen: false,
   projectName: '',
   toasts: [],
   setEditor: (editor) => set({ editor }),
   setTab: (tab) => set({ tab }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
+  setAiOpen: (aiOpen) => set({ aiOpen }),
   setProjectName: (projectName) => set({ projectName }),
   toast: (message) => {
     const id = nextToast++;

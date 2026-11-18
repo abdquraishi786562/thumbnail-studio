@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Download, Film, Image as ImageIcon, Wand2, X, AlertTriangle } from 'lucide-react';
+import { Download, Film, Image as ImageIcon, Wand2, X, AlertTriangle, Layers3, Check } from 'lucide-react';
 import { useUi } from '../store/ui';
 import { useEditorUi } from '../editor/editor';
-import { platformById } from '../editor/platforms';
+import { PLATFORMS, platformById, type PlatformId } from '../editor/platforms';
 import { Segmented, Slider } from './controls';
 
-type Kind = 'image' | 'animated';
+type Kind = 'image' | 'all' | 'animated';
 type ImageFormat = 'png' | 'jpeg';
 type AnimFormat = 'mp4' | 'webm' | 'gif';
 
@@ -48,6 +48,7 @@ export function ExportDialog() {
   const [length, setLength] = useState(clipLength);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<PlatformId>>(() => new Set(PLATFORMS.map((x) => x.id)));
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -87,6 +88,28 @@ export function ExportDialog() {
         const name = `${baseName}-${p.width}x${p.height}.${imageFormat === 'png' ? 'png' : 'jpg'}`;
         downloadBlob(blob, name);
         toast(`${t('export.done', { name })} · ${mb(blob.size)}`);
+        setOpen(false);
+        return;
+      }
+      if (kind === 'all') {
+        const ids = PLATFORMS.filter((x) => picked.has(x.id));
+        if (!ids.length) return;
+        setProgress(0);
+        const [{ zipSync }, { renderSnapshot, renderJpegUnder }] = await Promise.all([import('fflate'), import('../editor/autofit')]);
+        const files: Record<string, Uint8Array> = {};
+        const project = safeName(useUi.getState().projectName || t('app.untitled'));
+        for (let i = 0; i < ids.length; i++) {
+          const q = ids[i];
+          const snap = await editor.designFor(q.id);
+          const blob = imageFormat === 'png' ? await renderSnapshot(snap, 'png') : await renderJpegUnder(snap, q.maxBytes);
+          files[`${project}-${q.id}-${q.width}x${q.height}.${imageFormat === 'png' ? 'png' : 'jpg'}`] = new Uint8Array(await blob.arrayBuffer());
+          setProgress((i + 1) / ids.length);
+        }
+        const zip = zipSync(files, { level: 0 });
+        const name = `${project}-all-sizes.zip`;
+        const out = new Blob([zip], { type: 'application/zip' });
+        downloadBlob(out, name);
+        toast(`${t('export.done', { name })} · ${mb(out.size)}`);
         setOpen(false);
         return;
       }
@@ -150,6 +173,7 @@ export function ExportDialog() {
                 {(
                   [
                     ['image', ImageIcon, t('exportDlg.image'), 'PNG · JPG'],
+                    ['all', Layers3, t('exportAll.all'), 'ZIP'],
                     ['animated', Film, t('exportDlg.animated'), 'MP4 · WebM · GIF']
                   ] as const
                 ).map(([k, Icon, title, sub]) => (
@@ -165,7 +189,51 @@ export function ExportDialog() {
               </div>
 
               <AnimatePresence mode="wait" initial={false}>
-                {kind === 'image' ? (
+                {kind === 'all' ? (
+                  <motion.div key="all" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
+                    <p className="hint">{t('exportAll.hint')}</p>
+                    <div className="size-checks">
+                      {PLATFORMS.map((x, i) => {
+                        const on = picked.has(x.id);
+                        return (
+                          <motion.button
+                            key={x.id}
+                            className="size-check"
+                            aria-pressed={on}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.03 }}
+                            whileTap={{ scale: 0.96 }}
+                            onClick={() =>
+                              setPicked((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(x.id)) next.delete(x.id);
+                                else next.add(x.id);
+                                return next;
+                              })
+                            }
+                          >
+                            <span className="box">{on && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ display: 'grid' }}><Check size={13} /></motion.span>}</span>
+                            <span>{t(`sizes.${x.id}`)}</span>
+                            <bdi dir="ltr" className="px">{x.width}×{x.height}</bdi>
+                          </motion.button>
+                        );
+                      })}
+                    </div>
+                    <div className="field">
+                      <span className="label">{t('exportDlg.format')}</span>
+                      <Segmented
+                        group="allfmt"
+                        value={imageFormat}
+                        onChange={setImageFormat}
+                        options={[
+                          { value: 'png', label: 'PNG' },
+                          { value: 'jpeg', label: 'JPG' }
+                        ]}
+                      />
+                    </div>
+                  </motion.div>
+                ) : kind === 'image' ? (
                   <motion.div key="img" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.18 }}>
                     <div className="field">
                       <span className="label">{t('exportDlg.format')}</span>
@@ -256,14 +324,14 @@ export function ExportDialog() {
                     <motion.div className="progress-bar" animate={{ width: `${Math.round((progress ?? 0) * 100)}%` }} transition={{ ease: 'linear', duration: 0.15 }} />
                     <span>{t('exportDlg.rendering', { p: Math.round((progress ?? 0) * 100) })}</span>
                   </div>
-                  <button className="btn" onClick={() => abort.current?.abort()}>
+                  <button className="btn" onClick={() => abort.current?.abort()} disabled={kind === 'all'}>
                     {t('exportDlg.cancel')}
                   </button>
                 </>
               ) : (
-                <motion.button className="btn btn-primary wide" onClick={() => void run()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
+                <motion.button className="btn btn-primary wide" disabled={kind === 'all' && picked.size === 0} onClick={() => void run()} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}>
                   <Download size={16} />
-                  {t('exportDlg.start')}
+                  {kind === 'all' ? t('exportAll.count', { n: picked.size }) : t('exportDlg.start')}
                 </motion.button>
               )}
             </div>

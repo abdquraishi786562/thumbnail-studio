@@ -9,6 +9,7 @@ import { SizeTabs } from './components/SizeTabs';
 import { Inspector } from './components/Inspector';
 import { SettingsSheet } from './components/SettingsSheet';
 import { ExportDialog } from './components/ExportDialog';
+import { AiThumbnail } from './components/AiThumbnail';
 import { useSettings } from './store/settings';
 import { useUi } from './store/ui';
 import { applyTheme, resolveTheme } from './theme/themes';
@@ -66,6 +67,7 @@ export default function App() {
       </div>
       <SettingsSheet />
       <ExportDialog />
+      <AiThumbnail />
       <Toasts />
     </MotionConfig>
   );

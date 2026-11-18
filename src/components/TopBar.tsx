@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Download, Globe, Redo2, Settings2, Undo2, Clapperboard, Check } from 'lucide-react';
+import { Download, Globe, Redo2, Settings2, Undo2, Clapperboard, Check, Sparkles } from 'lucide-react';
 import { useUi } from '../store/ui';
 import { useEditorUi } from '../editor/editor';
 import { platformById } from '../editor/platforms';
@@ -139,6 +139,12 @@ export function TopBar({ onExport }: { onExport: () => void }) {
         }}
       >
         <Redo2 size={17} className="flip-rtl" />
+      </motion.button>
+      <motion.button className="btn ai-btn" onClick={() => useUi.getState().setAiOpen(true)} whileHover={{ y: -2, scale: 1.03 }} whileTap={{ scale: 0.95 }}>
+        <motion.span animate={{ rotate: [0, 20, -12, 0], scale: [1, 1.25, 1] }} transition={{ duration: 1.8, repeat: Infinity, repeatDelay: 1.6 }} style={{ display: 'grid' }}>
+          <Sparkles size={16} />
+        </motion.span>
+        <span className="hide-sm">{t('aiGen.open')}</span>
       </motion.button>
       <LanguageMenu />
       <motion.button

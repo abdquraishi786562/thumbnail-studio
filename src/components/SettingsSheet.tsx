@@ -9,6 +9,7 @@ import { LANGUAGES } from '../i18n/languages';
 import { Toggle } from './Toggle';
 import { withTransition } from './reveal';
 import { useChangeLanguage } from './TopBar';
+import { PictureSettings } from './PictureSettings';
 
 const cards: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.07, delayChildren: 0.12 } } };
 const card: Variants = {
@@ -196,6 +197,8 @@ export function SettingsSheet() {
                   <Toggle checked={reduceMotion} onChange={setReduceMotion} label={t('settings.reduceMotion')} />
                 </div>
               </motion.div>
+
+              <PictureSettings variants={card} />
 
               <motion.div className="card" variants={card}>
                 <p className="eyebrow">{t('settings.languageSection')}</p>

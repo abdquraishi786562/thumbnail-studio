@@ -14,6 +14,19 @@ Everything runs on your own computer: no account, no uploads.
 - Duplicate, align, flip, opacity, bring forward/back, snapping guides, undo/redo
 - Shortcuts: Ctrl+Z/Y, Ctrl+C/V/D, Delete, arrow keys (Shift = 10 px), [ and ], Space to play
 
+**AI Thumbnail**
+- Type what your video is about and get 6 finished, fully editable designs; "More ideas" for more
+- 11 styles (or Auto), optional photo of you or your product, right-to-left layouts for Dari, Pashto, Arabic, Urdu
+- Wording by Chrome's free on-device AI where available, otherwise by the built-in design assistant (offline, every language)
+- Optional AI-drawn backgrounds with your own key for Pollinations, OpenAI or any OpenAI-compatible service
+  (Settings → AI pictures). The key stays in your browser; only the idea text is sent to that service.
+
+**Sizes**
+- Each platform size keeps its own design; sizes you open for the first time are fitted automatically
+  (text re-wraps and rescales, photos cover, items stay inside safe margins)
+- "Re-fit from …" rebuilds a size from the main design
+- Export every size at once as a ZIP of PNG or JPG files
+
 **Animated thumbnails**
 - 10 entrance animations and 6 loops per item, with delay and length
 - Auto-animate everything in one click, live preview with a play bar

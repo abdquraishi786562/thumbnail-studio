@@ -19,7 +19,8 @@ import {
   Smartphone,
   Hourglass,
   LayoutTemplate,
-  Palette
+  Palette,
+  Sparkles
 } from 'lucide-react';
 import { useUi, type ToolTab } from '../store/ui';
 import { useSettings } from '../store/settings';
@@ -159,6 +160,16 @@ function AiPanel() {
   return (
     <motion.div variants={list} initial="hidden" animate="show">
       <motion.h2 variants={item}>{t('rail.ai')}</motion.h2>
+      <motion.button variants={item} className="ai-hero" onClick={() => useUi.getState().setAiOpen(true)} whileHover={{ y: -3, scale: 1.01 }} whileTap={{ scale: 0.97 }}>
+        <span className="ai-hero-shine" aria-hidden />
+        <motion.span className="ai-hero-icon" animate={{ rotate: [0, 12, -8, 0], scale: [1, 1.15, 1] }} transition={{ duration: 2.2, repeat: Infinity, repeatDelay: 0.8 }}>
+          <Sparkles size={22} />
+        </motion.span>
+        <span>
+          <strong>{t('aiGen.open')}</strong>
+          <span className="d">{t('aiGen.heroHint')}</span>
+        </span>
+      </motion.button>
       <motion.p variants={item} className="hint">
         {t('ai.intro')}
       </motion.p>

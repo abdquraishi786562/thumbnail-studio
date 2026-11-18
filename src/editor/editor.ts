@@ -8,10 +8,8 @@ import {
   Point,
   Polygon,
   Rect,
-  Shadow,
   Textbox,
   config,
-  filters,
   util,
   type TPointerEventInfo
 } from 'fabric';
@@ -20,6 +18,29 @@ import { detectDirection, type TextDirection } from './textDirection';
 import { ensureFont, fontForText, fontStack, fontWeight } from './fonts';
 import { PLATFORMS, platformById, type PlatformId } from './platforms';
 import { NO_ANIM, animStateAt, autoAnimate, type AnimSpec } from './animation';
+import { fitSnapshot, type DesignSnapshot } from './autofit';
+import {
+  DEFAULT_IMAGE,
+  META,
+  SERIALISE_PROPS,
+  applyImage,
+  applyStyle,
+  applyTextLayout,
+  clone,
+  metaOf,
+  newId,
+  setMeta,
+  shapeStyle,
+  textStyle,
+  type AlignKind,
+  type ImageAdjust,
+  type ObjectMeta,
+  type ShapeKind,
+  type Style
+} from './model';
+
+export * from './model';
+
 
 // Fabric 7 positions objects by their centre by default; this editor works in top-left coordinates.
 FabricObject.ownDefaults.originX = 'left';
@@ -33,77 +54,6 @@ FabricObject.ownDefaults.cornerSize = 14;
 FabricObject.ownDefaults.borderScaleFactor = 2;
 // Allow image filters on large photos (we downscale uploads to at most 3000 px).
 config.configure({ textureSize: 4096 });
-
-export type ShapeKind = 'rect' | 'circle' | 'badge' | 'triangle' | 'star' | 'arrow' | 'line' | 'bubble';
-export type EffectKind = 'none' | 'shadow' | 'glow' | 'hard';
-export type AlignKind = 'start' | 'center' | 'end';
-
-export interface Style {
-  fillMode: 'solid' | 'gradient';
-  fill: string;
-  fill2: string;
-  stroke: boolean;
-  strokeColor: string;
-  /** 0..1, scaled to the object's size. */
-  strokeWidth: number;
-  effect: EffectKind;
-  effectColor: string;
-  /** Text only: colour behind the letters. */
-  highlight: string | null;
-}
-
-export interface ImageAdjust {
-  brightness: number;
-  contrast: number;
-  saturation: number;
-  blur: number;
-  /** Fractions of the original image cut from each side. */
-  crop: { l: number; t: number; r: number; b: number };
-  /** Corner radius as a fraction of the shorter side (0..0.5). */
-  radius: number;
-  natural: { w: number; h: number };
-}
-
-/** Extra data we keep on each canvas object. */
-export interface ObjectMeta {
-  id: string;
-  kind: 'background' | 'text' | 'image' | 'shape';
-  shape?: ShapeKind;
-  dirMode?: 'auto' | TextDirection;
-  align?: AlignKind;
-  fontFamily?: string;
-  style?: Style;
-  image?: ImageAdjust;
-  anim?: AnimSpec;
-  locked?: boolean;
-}
-
-const META = 'tsMeta';
-
-export function metaOf(obj: FabricObject | undefined | null): ObjectMeta | undefined {
-  return obj ? ((obj as unknown as Record<string, unknown>)[META] as ObjectMeta | undefined) : undefined;
-}
-
-function setMeta(obj: FabricObject, meta: ObjectMeta): void {
-  (obj as unknown as Record<string, unknown>)[META] = meta;
-}
-
-let idCounter = 0;
-function newId(): string {
-  idCounter += 1;
-  return `o${Date.now().toString(36)}${idCounter.toString(36)}`;
-}
-
-const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
-
-const DEFAULT_IMAGE: Omit<ImageAdjust, 'natural'> = {
-  brightness: 0,
-  contrast: 0,
-  saturation: 0,
-  blur: 0,
-  crop: { l: 0, t: 0, r: 0, b: 0 },
-  radius: 0
-};
 
 /** Selection snapshot that React panels read. */
 export interface SelectionInfo {
@@ -173,7 +123,6 @@ export const useEditorUi = create<EditorUiState>(() => ({
 }));
 
 const HISTORY_LIMIT = 60;
-const SERIALISE_PROPS = [META, 'selectable', 'evented', 'hoverCursor', 'lockMovementX', 'lockMovementY'];
 const SNAP_PX = 8;
 
 /** Resting state of an object, saved while an animation plays. */
@@ -196,12 +145,6 @@ function graphemes(text: string): string[] {
   return Array.from(text);
 }
 
-function withAlpha(hex: string, alpha: number): string {
-  const h = hex.replace('#', '');
-  if (h.length !== 6) return hex;
-  const n = parseInt(h, 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${alpha})`;
-}
 
 /**
  * Owns the Fabric canvas: objects, selection, history, animation and export.
@@ -262,7 +205,7 @@ export class Editor {
           void ensureFont(family, target.text).then(() => this.canvas.requestRenderAll());
         }
       }
-      this.applyTextLayout(target);
+      applyTextLayout(target);
       this.canvas.requestRenderAll();
     });
     this.canvas.on('text:editing:exited', () => this.commit());
@@ -300,21 +243,23 @@ export class Editor {
     const W = this.width;
     const H = this.height;
     const blobA = new Circle({ radius: H * 0.55, left: W * 0.62, top: -H * 0.25, opacity: 0.08 });
-    setMeta(blobA, { id: newId(), kind: 'shape', shape: 'circle', style: this.shapeStyle('#ffffff'), anim: { ...NO_ANIM } });
+    setMeta(blobA, { id: newId(), kind: 'shape', shape: 'circle', style: shapeStyle('#ffffff'), anim: { ...NO_ANIM } });
     const blobB = new Circle({ radius: H * 0.35, left: -H * 0.15, top: H * 0.6, opacity: 0.12 });
-    setMeta(blobB, { id: newId(), kind: 'shape', shape: 'circle', style: this.shapeStyle('#000000'), anim: { ...NO_ANIM } });
-    this.applyStyle(blobA);
-    this.applyStyle(blobB);
+    setMeta(blobB, { id: newId(), kind: 'shape', shape: 'circle', style: shapeStyle('#000000'), anim: { ...NO_ANIM } });
+    applyStyle(blobA);
+    applyStyle(blobB);
     this.canvas.add(blobA, blobB);
     const heading = this.makeText(texts.heading, 'heading');
     heading.set({ left: W * 0.07, top: H * 0.3, width: W * 0.8, fontSize: H * 0.17 });
-    this.applyStyle(heading);
+    applyStyle(heading);
     const sub = this.makeText(texts.sub, 'sub');
     sub.set({ left: W * 0.07, top: H * 0.6, width: W * 0.8 });
     this.canvas.add(heading, sub);
     this.entrance(heading, 0);
     this.entrance(sub, 120);
     this.canvas.requestRenderAll();
+    this.mainPlatform = useEditorUi.getState().platform;
+    this.designs = {};
     this.resetHistory();
   }
 
@@ -358,55 +303,9 @@ export class Editor {
 
   // ---------- styles ----------
 
-  private textStyle(kind: 'heading' | 'sub' | 'body'): Style {
-    if (kind === 'heading') {
-      return { fillMode: 'solid', fill: '#ffffff', fill2: '#ffe45c', stroke: true, strokeColor: '#000000', strokeWidth: 0.36, effect: 'shadow', effectColor: '#000000', highlight: null };
-    }
-    if (kind === 'sub') {
-      return { fillMode: 'solid', fill: '#ffe45c', fill2: '#ff9f1c', stroke: false, strokeColor: '#000000', strokeWidth: 0.2, effect: 'shadow', effectColor: '#000000', highlight: null };
-    }
-    return { fillMode: 'solid', fill: '#ffffff', fill2: '#cbd5e1', stroke: false, strokeColor: '#000000', strokeWidth: 0.2, effect: 'none', effectColor: '#000000', highlight: null };
-  }
 
-  private shapeStyle(fill: string): Style {
-    return { fillMode: 'solid', fill, fill2: '#ffffff', stroke: false, strokeColor: '#ffffff', strokeWidth: 0.2, effect: 'none', effectColor: '#000000', highlight: null };
-  }
 
   /** Turn an object's style settings into Fabric properties. */
-  private applyStyle(obj: FabricObject): void {
-    const meta = metaOf(obj);
-    const st = meta?.style;
-    if (!meta || !st) return;
-    const isText = obj instanceof Textbox;
-    const size = isText ? (obj.fontSize ?? 64) : Math.min(obj.width ?? 100, obj.height ?? 100) * 0.35;
-
-    if (meta.kind !== 'image') {
-      obj.set(
-        'fill',
-        st.fillMode === 'gradient'
-          ? new Gradient({
-              type: 'linear',
-              gradientUnits: 'percentage',
-              coords: { x1: 0, y1: 0, x2: 0, y2: 1 },
-              colorStops: [
-                { offset: 0, color: st.fill },
-                { offset: 1, color: st.fill2 }
-              ]
-            })
-          : st.fill
-      );
-    }
-    const strokePx = isText ? size * 0.25 * st.strokeWidth : 40 * st.strokeWidth;
-    obj.set({ stroke: st.stroke ? st.strokeColor : undefined, strokeWidth: st.stroke ? Math.max(1, strokePx) : 0 });
-    if (isText) obj.set({ paintFirst: 'stroke', strokeLineJoin: 'round' });
-
-    let shadow: Shadow | null = null;
-    if (st.effect === 'shadow') shadow = new Shadow({ color: withAlpha(st.effectColor, 0.6), blur: size * 0.2, offsetX: 0, offsetY: size * 0.07 });
-    if (st.effect === 'glow') shadow = new Shadow({ color: st.effectColor, blur: size * 0.5, offsetX: 0, offsetY: 0 });
-    if (st.effect === 'hard') shadow = new Shadow({ color: st.effectColor, blur: 0, offsetX: size * 0.07, offsetY: size * 0.07 });
-    obj.set('shadow', shadow);
-    if (obj instanceof Textbox) obj.set('textBackgroundColor', st.highlight ?? '');
-  }
 
   // ---------- adding things ----------
 
@@ -425,20 +324,13 @@ export class Editor {
       lineHeight: 1.05,
       charSpacing: 0
     });
-    setMeta(t, { id: newId(), kind: 'text', dirMode: 'auto', align: 'start', fontFamily: family, style: this.textStyle(kind), anim: { ...NO_ANIM } });
-    this.applyStyle(t);
-    this.applyTextLayout(t);
+    setMeta(t, { id: newId(), kind: 'text', dirMode: 'auto', align: 'start', fontFamily: family, style: textStyle(kind), anim: { ...NO_ANIM } });
+    applyStyle(t);
+    applyTextLayout(t);
     return t;
   }
 
   /** Direction and alignment: 'start' means left for LTR text and right for RTL text. */
-  private applyTextLayout(t: Textbox): void {
-    const meta = metaOf(t);
-    const dir = meta?.dirMode && meta.dirMode !== 'auto' ? meta.dirMode : detectDirection(t.text ?? '');
-    const align = meta?.align ?? 'start';
-    const textAlign = align === 'center' ? 'center' : (align === 'start') === (dir === 'ltr') ? 'left' : 'right';
-    t.set({ direction: dir, textAlign });
-  }
 
   async addText(kind: 'heading' | 'sub' | 'body', text: string): Promise<void> {
     const t = this.makeText(text, kind);
@@ -496,8 +388,8 @@ export class Editor {
   addShape(kind: ShapeKind, accent: string): void {
     const shape = this.shapeObject(kind);
     const fill = kind === 'badge' ? '#ef4444' : kind === 'bubble' ? '#ffffff' : kind === 'arrow' || kind === 'star' ? '#ffe45c' : accent;
-    setMeta(shape, { id: newId(), kind: 'shape', shape: kind, style: this.shapeStyle(fill), anim: { ...NO_ANIM } });
-    this.applyStyle(shape);
+    setMeta(shape, { id: newId(), kind: 'shape', shape: kind, style: shapeStyle(fill), anim: { ...NO_ANIM } });
+    applyStyle(shape);
     this.placeCentered(shape);
     this.add(shape);
   }
@@ -531,11 +423,11 @@ export class Editor {
     setMeta(img, {
       id: newId(),
       kind: 'image',
-      style: this.shapeStyle('#ffffff'),
+      style: shapeStyle('#ffffff'),
       image: { ...clone(DEFAULT_IMAGE), natural: { w, h } },
       anim: { ...NO_ANIM }
     });
-    this.applyStyle(img);
+    applyStyle(img);
     this.placeCentered(img);
     this.add(img);
   }
@@ -723,15 +615,15 @@ export class Editor {
         if (patch.lineHeight !== undefined) obj.set('lineHeight', patch.lineHeight);
         if (patch.dirMode) meta.dirMode = patch.dirMode;
         if (patch.align) meta.align = patch.align;
-        this.applyTextLayout(obj);
+        applyTextLayout(obj);
         obj.initDimensions();
       }
       if (obj instanceof FabricImage && meta.image && patch.image) {
         const { crop, ...rest } = patch.image;
         meta.image = { ...meta.image, ...rest, crop: { ...meta.image.crop, ...(crop ?? {}) } };
-        this.applyImage(obj);
+        applyImage(obj);
       }
-      if (patch.style || patch.fontSize) this.applyStyle(obj);
+      if (patch.style || patch.fontSize) applyStyle(obj);
       obj.setCoords();
     }
     this.canvas.requestRenderAll();
@@ -740,40 +632,14 @@ export class Editor {
     if (commit) this.commit();
   }
 
-  /** Filters, crop and rounded corners for photos. */
-  private applyImage(img: FabricImage): void {
-    const adj = metaOf(img)?.image;
-    if (!adj) return;
-    const list = [];
-    if (adj.brightness) list.push(new filters.Brightness({ brightness: adj.brightness }));
-    if (adj.contrast) list.push(new filters.Contrast({ contrast: adj.contrast }));
-    if (adj.saturation) list.push(new filters.Saturation({ saturation: adj.saturation }));
-    if (adj.blur) list.push(new filters.Blur({ blur: adj.blur }));
-    img.filters = list;
-    img.applyFilters();
 
-    const { w, h } = adj.natural;
-    const { l, t, r, b } = adj.crop;
-    const center = img.getCenterPoint();
-    const cw = Math.max(8, w * (1 - l - r));
-    const ch = Math.max(8, h * (1 - t - b));
-    img.set({ cropX: w * l, cropY: h * t, width: cw, height: ch });
-    img.set(
-      'clipPath',
-      adj.radius > 0
-        ? new Rect({ width: cw, height: ch, rx: Math.min(cw, ch) * adj.radius, ry: Math.min(cw, ch) * adj.radius, originX: 'center', originY: 'center', left: 0, top: 0 })
-        : undefined
-    );
-    img.setPositionByOrigin(center, 'center', 'center');
-    img.setCoords();
-  }
 
   resetImage(): void {
     const obj = this.active();
     const meta = metaOf(obj);
     if (!(obj instanceof FabricImage) || !meta?.image) return;
     meta.image = { ...clone(DEFAULT_IMAGE), natural: meta.image.natural };
-    this.applyImage(obj);
+    applyImage(obj);
     this.canvas.requestRenderAll();
     this.syncSelection();
     this.commit();
@@ -938,33 +804,81 @@ export class Editor {
 
   // ---------- platform sizes ----------
 
-  /** Move to another platform size, keeping every object's relative position. */
-  resizeTo(platform: PlatformId): void {
+  private designs: Partial<Record<PlatformId, DesignSnapshot>> = {};
+  /** The size the user designed first; other sizes are fitted from it. */
+  private mainPlatform: PlatformId = 'youtube';
+
+  private currentSnapshot(): DesignSnapshot {
+    return { w: this.width, h: this.height, c: this.canvas.toObject(SERIALISE_PROPS) as Record<string, unknown> };
+  }
+
+  get main(): PlatformId {
+    return this.mainPlatform;
+  }
+
+  /** Which sizes already have their own design. */
+  get designedSizes(): PlatformId[] {
+    return Object.keys(this.designs) as PlatformId[];
+  }
+
+  /**
+   * Switch to another platform size. Each size keeps its own design; a size opened for the
+   * first time is fitted automatically from the main design.
+   */
+  async resizeTo(platform: PlatformId): Promise<'loaded' | 'fitted'> {
     this.stop();
-    const p = platformById(platform);
-    const sx = p.width / this.width;
-    const sy = p.height / this.height;
-    const s = Math.min(sx, sy);
     this.canvas.discardActiveObject();
-    for (const obj of this.canvas.getObjects()) {
-      if (metaOf(obj)?.kind === 'background') {
-        obj.set({ width: p.width, height: p.height });
-        continue;
-      }
-      const c = obj.getCenterPoint();
-      obj.set({ scaleX: (obj.scaleX ?? 1) * s, scaleY: (obj.scaleY ?? 1) * s });
-      obj.setPositionByOrigin(c.setXY(c.x * sx, c.y * sy), 'center', 'center');
-      obj.setCoords();
+    const current = useEditorUi.getState().platform;
+    this.designs[current] = this.currentSnapshot();
+    let result: 'loaded' | 'fitted' = 'loaded';
+    let snap = this.designs[platform];
+    if (!snap) {
+      const p = platformById(platform);
+      const source = this.designs[this.mainPlatform] ?? this.designs[current]!;
+      snap = await fitSnapshot(source, { w: p.width, h: p.height });
+      this.designs[platform] = snap;
+      result = 'fitted';
     }
-    this.width = p.width;
-    this.height = p.height;
-    const bg = this.byId('background');
-    const fill = bg?.fill;
-    if (bg && fill instanceof Gradient) {
-      const stops = fill.colorStops;
-      bg.set('fill', this.backgroundGradient(stops[0]?.color ?? '#000', stops[stops.length - 1]?.color ?? '#000'));
-    }
+    await this.restore(JSON.stringify(snap));
     useEditorUi.setState({ platform });
+    this.commit();
+    return result;
+  }
+
+  /** Throw away this size's design and fit it again from the main design. */
+  async refitFromMain(): Promise<void> {
+    const current = useEditorUi.getState().platform;
+    const source = this.designs[this.mainPlatform];
+    if (current === this.mainPlatform || !source) return;
+    const p = platformById(current);
+    const snap = await fitSnapshot(source, { w: p.width, h: p.height });
+    this.designs[current] = snap;
+    await this.restore(JSON.stringify(snap));
+    this.commit();
+  }
+
+  /** The design for a size, fitting it if it has never been opened (used by "export all sizes"). */
+  async designFor(platform: PlatformId): Promise<DesignSnapshot> {
+    const current = useEditorUi.getState().platform;
+    this.designs[current] = this.currentSnapshot();
+    const existing = this.designs[platform];
+    if (existing) return existing;
+    const p = platformById(platform);
+    const snap = await fitSnapshot(this.designs[this.mainPlatform] ?? this.designs[current]!, { w: p.width, h: p.height });
+    this.designs[platform] = snap;
+    return snap;
+  }
+
+  /** Load a finished design (e.g. from the AI generator) as the new main design. */
+  async loadDesign(snap: DesignSnapshot, platform: PlatformId): Promise<void> {
+    this.stop();
+    this.canvas.discardActiveObject();
+    this.designs = { [platform]: snap };
+    this.mainPlatform = platform;
+    await this.restore(JSON.stringify(snap));
+    useEditorUi.setState({ platform });
+    // pop everything in, like a reveal
+    this.objects().forEach((o, i) => this.entrance(o, i * 70));
     this.commit();
   }
 
@@ -1136,6 +1050,7 @@ export class Editor {
     this.publishLayers();
     this.publishAnimation();
     const snap = this.snapshot();
+    this.designs[useEditorUi.getState().platform] = JSON.parse(snap) as DesignSnapshot;
     if (this.history[this.history.length - 1] === snap) return;
     this.history.push(snap);
     if (this.history.length > HISTORY_LIMIT) this.history.shift();
