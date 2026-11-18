@@ -14,6 +14,7 @@ interface UiState {
   settingsOpen: boolean;
   exportOpen: boolean;
   aiOpen: boolean;
+  projectsOpen: boolean;
   projectName: string;
   toasts: Toast[];
   setEditor: (editor: Editor | null) => void;
@@ -21,6 +22,7 @@ interface UiState {
   setSettingsOpen: (open: boolean) => void;
   setExportOpen: (open: boolean) => void;
   setAiOpen: (open: boolean) => void;
+  setProjectsOpen: (open: boolean) => void;
   setProjectName: (name: string) => void;
   toast: (message: string) => void;
 }
@@ -33,6 +35,7 @@ export const useUi = create<UiState>((set, get) => ({
   settingsOpen: false,
   exportOpen: false,
   aiOpen: false,
+  projectsOpen: false,
   projectName: '',
   toasts: [],
   setEditor: (editor) => set({ editor }),
@@ -40,6 +43,7 @@ export const useUi = create<UiState>((set, get) => ({
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
   setAiOpen: (aiOpen) => set({ aiOpen }),
+  setProjectsOpen: (projectsOpen) => set({ projectsOpen }),
   setProjectName: (projectName) => set({ projectName }),
   toast: (message) => {
     const id = nextToast++;

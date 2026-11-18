@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
-import { Download, Globe, Redo2, Settings2, Undo2, Clapperboard, Check, Sparkles } from 'lucide-react';
+import { Download, Globe, Redo2, Settings2, Undo2, Clapperboard, Check, Sparkles, FolderOpen, CloudCheck, LoaderCircle, CloudAlert } from 'lucide-react';
 import { useUi } from '../store/ui';
 import { useEditorUi } from '../editor/editor';
 import { platformById } from '../editor/platforms';
 import { useSettings } from '../store/settings';
 import { LANGUAGES, type LanguageCode } from '../i18n/languages';
 import { withTransition } from './reveal';
+import { scheduleSave, useProjects } from '../projects/projects';
 
 export function useChangeLanguage() {
   const setLanguage = useSettings((s) => s.setLanguage);
@@ -80,6 +81,28 @@ function LanguageMenu() {
   );
 }
 
+function SaveStatus() {
+  const { t } = useTranslation();
+  const status = useProjects((s) => s.status);
+  if (status === 'idle') return null;
+  const Icon = status === 'saving' ? LoaderCircle : status === 'error' ? CloudAlert : CloudCheck;
+  const label = status === 'saving' ? t('projects.saving') : status === 'error' ? t('projects.saveFailed') : t('projects.saved');
+  return (
+    <AnimatePresence mode="wait">
+      <motion.span key={status} className={`save-status ${status}`} title={label} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}>
+        <motion.span
+          style={{ display: 'grid' }}
+          animate={status === 'saving' ? { rotate: 360 } : { scale: [1.3, 1] }}
+          transition={status === 'saving' ? { repeat: Infinity, duration: 0.9, ease: 'linear' } : { duration: 0.3 }}
+        >
+          <Icon size={15} />
+        </motion.span>
+        <span className="hide-sm">{label}</span>
+      </motion.span>
+    </AnimatePresence>
+  );
+}
+
 export function TopBar({ onExport }: { onExport: () => void }) {
   const { t } = useTranslation();
   const editor = useUi((s) => s.editor);
@@ -112,10 +135,24 @@ export function TopBar({ onExport }: { onExport: () => void }) {
         className="project-name"
         value={projectName}
         placeholder={t('app.untitled')}
-        onChange={(e) => setProjectName(e.target.value)}
+        onChange={(e) => {
+          setProjectName(e.target.value);
+          if (editor?.onChange) scheduleSave(editor, () => useUi.getState().projectName);
+        }}
         aria-label={t('app.untitled')}
       />
+      <SaveStatus />
       <div className="spacer" />
+      <motion.button
+        className="icon-btn"
+        aria-label={t('projects.open')}
+        title={t('projects.open')}
+        onClick={() => useUi.getState().setProjectsOpen(true)}
+        whileHover={{ y: -2 }}
+        whileTap={{ scale: 0.9 }}
+      >
+        <FolderOpen size={17} />
+      </motion.button>
       <motion.button
         className="icon-btn"
         disabled={!canUndo}

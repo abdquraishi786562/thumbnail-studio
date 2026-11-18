@@ -21,6 +21,11 @@ Everything runs on your own computer: no account, no uploads.
 - Optional AI-drawn backgrounds with your own key for Pollinations, OpenAI or any OpenAI-compatible service
   (Settings → AI pictures). The key stays in your browser; only the idea text is sent to that service.
 
+**Templates and projects**
+- Templates gallery: 18 ready-made designs across 10 styles, drawn for the current size and language
+- Projects save automatically on this device (including your photos) and the last one reopens on start
+- Projects list: open, new, duplicate, delete; download a `.thumbproj` backup and import it anywhere
+
 **Sizes**
 - Each platform size keeps its own design; sizes you open for the first time are fitted automatically
   (text re-wraps and rescales, photos cover, items stay inside safe margins)

@@ -19,6 +19,14 @@ import { ensureFont, fontForText, fontStack, fontWeight } from './fonts';
 import { PLATFORMS, platformById, type PlatformId } from './platforms';
 import { NO_ANIM, animStateAt, autoAnimate, type AnimSpec } from './animation';
 import { fitSnapshot, type DesignSnapshot } from './autofit';
+
+export interface ProjectState {
+  version: 1;
+  designs: Partial<Record<PlatformId, DesignSnapshot>>;
+  main: PlatformId;
+  platform: PlatformId;
+  clipLength: number;
+}
 import {
   DEFAULT_IMAGE,
   META,
@@ -882,6 +890,49 @@ export class Editor {
     this.commit();
   }
 
+  // ---------- projects ----------
+
+  /** Called after every change that is worth saving (used for autosave). */
+  onChange: (() => void) | null = null;
+
+  /** Everything needed to reopen this project later. */
+  exportState(): ProjectState {
+    const platform = useEditorUi.getState().platform;
+    this.designs[platform] = this.currentSnapshot();
+    return {
+      version: 1,
+      designs: JSON.parse(JSON.stringify(this.designs)) as Partial<Record<PlatformId, DesignSnapshot>>,
+      main: this.mainPlatform,
+      platform,
+      clipLength: useEditorUi.getState().clipLength
+    };
+  }
+
+  async importState(state: ProjectState): Promise<void> {
+    this.stop();
+    this.canvas.discardActiveObject();
+    const platform = state.designs[state.platform] ? state.platform : state.main;
+    const snap = state.designs[platform];
+    if (!snap) throw new Error('Project has no design');
+    this.designs = { ...state.designs };
+    this.mainPlatform = state.main;
+    useEditorUi.setState({ clipLength: state.clipLength ?? 4 });
+    await this.restore(JSON.stringify(snap));
+    useEditorUi.setState({ platform });
+    this.resetHistory();
+  }
+
+  /** A small picture of the current design for the projects list. */
+  thumbnail(maxWidth = 360): string {
+    const zoom = this.canvas.getZoom() || 1;
+    const m = Math.min(1, maxWidth / this.width) / zoom;
+    const active = this.canvas.getActiveObject();
+    this.canvas.discardActiveObject();
+    const url = this.canvas.toDataURL({ format: 'jpeg', quality: 0.8, multiplier: m });
+    if (active) this.canvas.setActiveObject(active);
+    return url;
+  }
+
   // ---------- animation ----------
 
   private publishAnimation(): void {
@@ -891,6 +942,7 @@ export class Editor {
 
   setClipLength(seconds: number): void {
     useEditorUi.setState({ clipLength: Math.max(1, Math.min(15, seconds)) });
+    this.onChange?.();
   }
 
   /** Give every object a staggered entrance. */
@@ -1056,6 +1108,7 @@ export class Editor {
     if (this.history.length > HISTORY_LIMIT) this.history.shift();
     this.future = [];
     this.publishHistory();
+    this.onChange?.();
   }
 
   private publishHistory(): void {
@@ -1070,6 +1123,7 @@ export class Editor {
     const current = this.history.pop()!;
     this.future.push(current);
     await this.restore(this.history[this.history.length - 1]);
+    this.onChange?.();
     return true;
   }
 
@@ -1079,6 +1133,7 @@ export class Editor {
     if (!next) return false;
     this.history.push(next);
     await this.restore(next);
+    this.onChange?.();
     return true;
   }
 

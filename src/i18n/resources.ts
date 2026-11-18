@@ -34,19 +34,31 @@ import fr3 from './locales/step3/fr';
 import es3 from './locales/step3/es';
 import de3 from './locales/step3/de';
 import ru3 from './locales/step3/ru';
+import en4 from './locales/step4/en';
+import faAF4 from './locales/step4/fa-AF';
+import ps4 from './locales/step4/ps';
+import fa4 from './locales/step4/fa';
+import ar4 from './locales/step4/ar';
+import ur4 from './locales/step4/ur';
+import uz4 from './locales/step4/uz';
+import tr4 from './locales/step4/tr';
+import fr4 from './locales/step4/fr';
+import es4 from './locales/step4/es';
+import de4 from './locales/step4/de';
+import ru4 from './locales/step4/ru';
 
 // Each build step adds its own top-level sections; they never overlap.
 export const resources = {
-  en: { translation: { ...en, ...en2, ...en3 } },
-  'fa-AF': { translation: { ...faAF, ...faAF2, ...faAF3 } },
-  ps: { translation: { ...ps, ...ps2, ...ps3 } },
-  fa: { translation: { ...fa, ...fa2, ...fa3 } },
-  ar: { translation: { ...ar, ...ar2, ...ar3 } },
-  ur: { translation: { ...ur, ...ur2, ...ur3 } },
-  uz: { translation: { ...uz, ...uz2, ...uz3 } },
-  tr: { translation: { ...tr, ...tr2, ...tr3 } },
-  fr: { translation: { ...fr, ...fr2, ...fr3 } },
-  es: { translation: { ...es, ...es2, ...es3 } },
-  de: { translation: { ...de, ...de2, ...de3 } },
-  ru: { translation: { ...ru, ...ru2, ...ru3 } }
+  en: { translation: { ...en, ...en2, ...en3, ...en4 } },
+  'fa-AF': { translation: { ...faAF, ...faAF2, ...faAF3, ...faAF4 } },
+  ps: { translation: { ...ps, ...ps2, ...ps3, ...ps4 } },
+  fa: { translation: { ...fa, ...fa2, ...fa3, ...fa4 } },
+  ar: { translation: { ...ar, ...ar2, ...ar3, ...ar4 } },
+  ur: { translation: { ...ur, ...ur2, ...ur3, ...ur4 } },
+  uz: { translation: { ...uz, ...uz2, ...uz3, ...uz4 } },
+  tr: { translation: { ...tr, ...tr2, ...tr3, ...tr4 } },
+  fr: { translation: { ...fr, ...fr2, ...fr3, ...fr4 } },
+  es: { translation: { ...es, ...es2, ...es3, ...es4 } },
+  de: { translation: { ...de, ...de2, ...de3, ...de4 } },
+  ru: { translation: { ...ru, ...ru2, ...ru3, ...ru4 } }
 } as const;

@@ -43,7 +43,7 @@ const LATIN_FONTS: Record<ConcreteStyle, string[]> = {
 
 const PASHTO_LETTERS = /[ټډړښږګڼۍې]/;
 
-function fontsFor(style: ConcreteStyle, rtl: boolean, text: string): string[] {
+export function fontsFor(style: ConcreteStyle, rtl: boolean, text: string): string[] {
   if (!rtl) return LATIN_FONTS[style];
   // Lalezar has no Pashto letters, so only offer it for other Arabic-script text.
   return PASHTO_LETTERS.test(text) ? ['Vazirmatn', 'Noto Sans Arabic'] : ['Vazirmatn', 'Lalezar', 'Noto Sans Arabic'];

@@ -7,6 +7,7 @@ import { useUi } from '../store/ui';
 import { useSettings } from '../store/settings';
 import { resolveTheme } from '../theme/themes';
 import { PlayButton } from './AnimatePanel';
+import { flushSave, lastProjectId, openProject, refreshList, scheduleSave } from '../projects/projects';
 
 export function Stage() {
   const { t } = useTranslation();
@@ -32,8 +33,28 @@ export function Stage() {
     const theme = resolveTheme(s.theme, s.customAccent, s.customDark);
     const ed = new Editor(canvasEl.current, useEditorUi.getState().platform, () => !reduceRef.current);
     setEditor(ed);
-    void ed.loadStarter({ heading: t('text.sampleHeading'), sub: t('text.sampleSub') }, theme.accent, theme.accent2);
+    const starter = () => ed.loadStarter({ heading: t('text.sampleHeading'), sub: t('text.sampleSub') }, theme.accent, theme.accent2);
+    // Reopen the last project; otherwise start fresh.
+    void (async () => {
+      const last = lastProjectId();
+      try {
+        const rec = last ? await openProject(ed, last) : null;
+        if (rec) useUi.getState().setProjectName(rec.name);
+        else await starter();
+      } catch (e) {
+        console.error('could not reopen project', e);
+        await starter();
+      }
+      void refreshList();
+      ed.onChange = () => scheduleSave(ed, () => useUi.getState().projectName);
+    })();
+    // Save straight away when the tab is hidden or closed.
+    const flush = () => {
+      if (document.visibilityState === 'hidden') flushSave(ed, useUi.getState().projectName);
+    };
+    document.addEventListener('visibilitychange', flush);
     return () => {
+      document.removeEventListener('visibilitychange', flush);
       setEditor(null);
       ed.dispose();
     };

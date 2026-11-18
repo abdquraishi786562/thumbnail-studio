@@ -28,6 +28,7 @@ import { resolveTheme } from '../theme/themes';
 import type { ShapeKind } from '../editor/editor';
 import { LayersPanel } from './LayersPanel';
 import { AnimatePanel } from './AnimatePanel';
+import { TemplatesPanel } from './TemplatesPanel';
 
 const list: Variants = {
   hidden: {},
@@ -230,7 +231,8 @@ export function SidePanel() {
           {tab === 'ai' && <AiPanel />}
           {tab === 'layers' && <LayersPanel />}
           {tab === 'animate' && <AnimatePanel />}
-          {(tab === 'templates' || tab === 'brand') && <ComingSoon tab={tab} />}
+          {tab === 'templates' && <TemplatesPanel />}
+          {tab === 'brand' && <ComingSoon tab={tab} />}
         </motion.div>
       </AnimatePresence>
     </motion.aside>
